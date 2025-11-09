@@ -33,11 +33,72 @@
         .subtitle {
             text-align: center;
             color: #666;
-            margin-bottom: 30px;
+            margin-bottom: 20px;
             font-size: 0.9em;
         }
+        .api-section {
+            background: #f8f9fa;
+            border: 2px solid #e0e0e0;
+            border-radius: 15px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+        .api-section h3 {
+            color: #667eea;
+            font-size: 1.1em;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .api-section p {
+            font-size: 0.85em;
+            color: #666;
+            margin-bottom: 10px;
+        }
+        .api-input-group {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+        #api-key-input {
+            flex: 1;
+            padding: 10px 15px;
+            border: 2px solid #667eea;
+            border-radius: 10px;
+            font-size: 14px;
+            outline: none;
+        }
+        .btn-save {
+            padding: 10px 20px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background 0.3s;
+        }
+        .btn-save:hover {
+            background: #5568d3;
+        }
+        .status-badge {
+            display: inline-block;
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 0.8em;
+            font-weight: bold;
+        }
+        .status-connected {
+            background: #d4edda;
+            color: #155724;
+        }
+        .status-disconnected {
+            background: #f8d7da;
+            color: #721c24;
+        }
         #chat-box {
-            height: 400px;
+            height: 350px;
             overflow-y: auto;
             border: 2px solid #e0e0e0;
             border-radius: 15px;
@@ -66,6 +127,15 @@
         .bot-message {
             background: #e9ecef;
             color: #333;
+        }
+        .ai-badge {
+            display: inline-block;
+            background: #28a745;
+            color: white;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 0.7em;
+            margin-left: 5px;
         }
         .input-container {
             display: flex;
@@ -101,12 +171,33 @@
         button:active {
             transform: scale(0.95);
         }
+        .link {
+            color: #667eea;
+            text-decoration: none;
+        }
+        .link:hover {
+            text-decoration: underline;
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <h1>🤖 JARVIS</h1>
         <p class="subtitle">Your Personal AI Assistant</p>
+        
+        <div class="api-section">
+            <h3>
+                🔑 OpenAI API Configuration
+                <span id="status-badge" class="status-badge status-disconnected">Not Connected</span>
+            </h3>
+            <p>Add your OpenAI API key to enable real AI responses. <a href="https://platform.openai.com/api-keys" target="_blank" class="link">Get your API key here</a></p>
+            <div class="api-input-group">
+                <input type="password" id="api-key-input" placeholder="Enter your OpenAI API key (sk-...)">
+                <button class="btn-save" onclick="saveApiKey()">Save Key</button>
+            </div>
+            <p style="font-size: 0.75em; color: #999; margin-top: 5px;">💡 Your API key is stored locally in your browser and never sent anywhere except OpenAI.</p>
+        </div>
+
         <div id="chat-box"></div>
         <div class="input-container">
             <input type="text" id="user-input" placeholder="Ask me anything..." onkeypress="if(event.key==='Enter') sendMessage()">
@@ -117,33 +208,109 @@
     <script>
         const chatBox = document.getElementById('chat-box');
         const userInput = document.getElementById('user-input');
+        const apiKeyInput = document.getElementById('api-key-input');
+        const statusBadge = document.getElementById('status-badge');
+        let apiKey = localStorage.getItem('openai_api_key') || '';
 
-        // Add welcome message
-        addMessage('Hello! I am JARVIS, your AI assistant. How can I help you today?', 'bot');
+        // Initialize
+        if (apiKey) {
+            apiKeyInput.value = apiKey;
+            updateStatus(true);
+            addMessage('Hello! I am JARVIS with real AI power! Ask me anything!', 'bot', true);
+        } else {
+            addMessage('Hello! I am JARVIS. Add your OpenAI API key above to unlock real AI capabilities, or chat with my basic mode!', 'bot');
+        }
 
-        function addMessage(text, type) {
+        function saveApiKey() {
+            apiKey = apiKeyInput.value.trim();
+            if (apiKey) {
+                localStorage.setItem('openai_api_key', apiKey);
+                updateStatus(true);
+                addMessage('API key saved! I am now powered by real AI. Try asking me complex questions!', 'bot', true);
+            } else {
+                localStorage.removeItem('openai_api_key');
+                updateStatus(false);
+                addMessage('API key removed. I am back to basic mode.', 'bot');
+            }
+        }
+
+        function updateStatus(connected) {
+            if (connected) {
+                statusBadge.textContent = 'Connected';
+                statusBadge.className = 'status-badge status-connected';
+            } else {
+                statusBadge.textContent = 'Not Connected';
+                statusBadge.className = 'status-badge status-disconnected';
+            }
+        }
+
+        function addMessage(text, type, isAI = false) {
             const messageDiv = document.createElement('div');
             messageDiv.className = `message ${type}-message`;
-            messageDiv.textContent = text;
+            if (isAI && type === 'bot') {
+                messageDiv.innerHTML = text + '<span class="ai-badge">AI</span>';
+            } else {
+                messageDiv.textContent = text;
+            }
             chatBox.appendChild(messageDiv);
             chatBox.scrollTop = chatBox.scrollHeight;
         }
 
-        function sendMessage() {
+        async function sendMessage() {
             const message = userInput.value.trim();
             if (!message) return;
 
             addMessage(message, 'user');
             userInput.value = '';
 
-            // Simple AI responses
-            setTimeout(() => {
-                const response = generateResponse(message.toLowerCase());
-                addMessage(response, 'bot');
-            }, 500);
+            if (apiKey && apiKey.startsWith('sk-')) {
+                // Use real OpenAI API
+                await getAIResponse(message);
+            } else {
+                // Basic fallback responses
+                setTimeout(() => {
+                    const response = generateBasicResponse(message.toLowerCase());
+                    addMessage(response, 'bot');
+                }, 500);
+            }
         }
 
-        function generateResponse(message) {
+        async function getAIResponse(message) {
+            try {
+                const response = await fetch('https://api.openai.com/v1/chat/completions', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${apiKey}`
+                    },
+                    body: JSON.stringify({
+                        model: 'gpt-3.5-turbo',
+                        messages: [{
+                            role: 'system',
+                            content: 'You are JARVIS, a helpful AI assistant. Be concise and friendly.'
+                        }, {
+                            role: 'user',
+                            content: message
+                        }],
+                        max_tokens: 500,
+                        temperature: 0.7
+                    })
+                });
+
+                const data = await response.json();
+                
+                if (response.ok) {
+                    const aiResponse = data.choices[0].message.content;
+                    addMessage(aiResponse, 'bot', true);
+                } else {
+                    addMessage('Error: ' + (data.error?.message || 'Failed to get AI response. Please check your API key.'), 'bot');
+                }
+            } catch (error) {
+                addMessage('Error connecting to AI service. Please check your internet connection.', 'bot');
+            }
+        }
+
+        function generateBasicResponse(message) {
             if (message.includes('hello') || message.includes('hi')) {
                 return 'Hello! How can I assist you today?';
             } else if (message.includes('how are you')) {
@@ -155,13 +322,15 @@
             } else if (message.includes('date')) {
                 return 'Today is ' + new Date().toLocaleDateString();
             } else if (message.includes('help')) {
-                return 'I can answer questions, tell you the time and date, and have a conversation with you!';
+                return 'I can answer questions and have conversations! Add an OpenAI API key above for advanced AI capabilities.';
+            } else if (message.includes('api')) {
+                return 'To use real AI, get your API key from https://platform.openai.com/api-keys and enter it above!';
             } else if (message.includes('thank')) {
                 return 'You are welcome! Is there anything else I can help you with?';
             } else if (message.includes('bye')) {
                 return 'Goodbye! Have a great day!';
             } else {
-                return 'Interesting question! While I am a simple AI, I am here to assist you. Try asking me about the time, date, or just say hello!';
+                return 'Interesting question! Add an OpenAI API key above to unlock my full AI capabilities for detailed answers!';
             }
         }
     </script>
